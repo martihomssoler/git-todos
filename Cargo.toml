@@ -1,0 +1,9 @@
+[package]
+name = "git-todos"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+crossbeam-channel = "0.5.13"
+rayon = "1.10.0"
+regex = "1.10.5"
