@@ -1,5 +1,16 @@
 # git-todos
 
+A simple tool that scans your git repo and generates a list of action items that you did not forget at all...
+
+Executing it inside the `git-todos` repo will generate the following file (which you can find [here](TODOS.md)).
+
+> # TODOS
+> 
+> ## TEST
+> 
+> - [src/main.rs#L9](src/main.rs#L9) @mhs:  
+> 
+
 ## Installing
 
 Using `cargo install`, installing `git-todos` is super easy. 
