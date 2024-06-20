@@ -7,15 +7,15 @@ use std::fs::File;
 use std::io::{Result, Write};
 use std::path::{Path, PathBuf};
 
-// TEST(mhs):
-const REGEX: &str = r"(?m)(\/\/|\#)(\s)*[A-Z]+(\([a-zA-Z0-9]+\))?:(\s)*";
+// TEST(mhs): minimum on 3 characters to be parsed
+// A:
+// AB:
+// ABC:
+const REGEX: &str = r"(?m)(\/\/|\#)(\s)*[A-Z][A-Z][A-Z]+(\([a-zA-Z0-9]+\))?:(\s)*";
 const REGEX_SPLIT_CHARS: [char; 3] = ['(', ')', ':'];
 const COMMENT_SPACE_CHARS: [char; 3] = ['/', '#', ' '];
 
-const SOURCE_EXT: [Option<&str>; 1] = [
-    Some("rs"),
-    //
-];
+const SOURCE_EXT: [&str; 1] = ["rs"];
 
 fn main() -> Result<()> {
     let count = env::args().len();
@@ -118,7 +118,7 @@ fn run_path(path: &Path, tx: Sender<TodoItem>, regex: &Regex) -> Result<()> {
 
 fn search_file(path: &Path, tx: Sender<TodoItem>, regex: &Regex) -> Result<()> {
     if let Some(path_ext) = path.extension() {
-        if !SOURCE_EXT.contains(&path_ext.to_str()) {
+        if !SOURCE_EXT.contains(&path_ext.to_str().unwrap_or_default()) {
             return Ok(());
         }
 

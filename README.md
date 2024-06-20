@@ -8,7 +8,11 @@ Executing it inside the `git-todos` repo will generate the following file (which
 > 
 > ## TEST
 > 
-> - [src/main.rs#L9](src/main.rs#L9) @mhs:  
+>  - [src\main.rs#L10](src\main.rs#L10) @mhs:  minimum on 3 characters to be parsed
+> 
+> ## ABC
+> 
+>  - [src\main.rs#L13](src\main.rs#L13) :  
 > 
 
 ## Installing
