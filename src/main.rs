@@ -142,7 +142,6 @@ fn search_file(path: &Path, tx: Sender<TodoItem>, regex: &Regex) -> Result<()> {
                         .filter(|i| !i.is_empty())
                         .collect::<Vec<_>>();
 
-                    println!("{split_item:?}");
                     let name = if split_item.len() > 1 && !split_item[1].trim_end().is_empty() {
                         Some(Name::new(split_item[1]))
                     } else {
