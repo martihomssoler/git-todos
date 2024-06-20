@@ -34,7 +34,7 @@ fn main() -> Result<()> {
 #[derive(Debug)]
 struct TodoItem {
     pub keyword: Keyword,
-    pub name: Name,
+    pub name: Option<Name>,
     pub file_path: PathBuf,
     pub line: usize,
     pub message: String,
@@ -137,16 +137,23 @@ fn search_file(path: &Path, tx: Sender<TodoItem>, regex: &Regex) -> Result<()> {
                         .filter(|i| !i.is_empty())
                         .collect();
 
-                    let collect = split_item[0]
+                    let filtered_items = split_item[0]
                         .rsplit(COMMENT_SPACE_CHARS)
                         .filter(|i| !i.is_empty())
                         .collect::<Vec<_>>();
 
+                    println!("{split_item:?}");
+                    let name = if split_item.len() > 1 && !split_item[1].trim_end().is_empty() {
+                        Some(Name::new(split_item[1]))
+                    } else {
+                        None
+                    };
+
                     let todo_item = TodoItem {
-                        keyword: Keyword::new(collect[0]),
-                        name: Name::new(split_item[0]),
+                        keyword: Keyword::new(filtered_items[0]),
+                        name,
                         file_path: path.to_owned(),
-                        line: line_number,
+                        line: line_number + 1,
                         message: line_content[rgx.end()..].to_string(),
                     };
 
@@ -204,8 +211,12 @@ fn write_todos(
 
             let _ = writeln!(
                 todos_file,
-                " - [{rel_path}#L{line}]({rel_path}#L{line}) @{}:  {message}",
-                name.0
+                " - [{rel_path}#L{line}]({rel_path}#L{line}) {}:  {message}",
+                if let Some(name) = name {
+                    format!("@{}", name.0)
+                } else {
+                    "".to_string()
+                }
             );
         }
 
