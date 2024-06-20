@@ -68,8 +68,14 @@ fn run() -> Result<()> {
     git_folder.push(".git");
 
     if !git_folder.exists() {
-        println!("git-todos must be called inside a git repo.");
-        return Ok(());
+        let mut line = String::new();
+        println!("git-todos in being called outside a git repo. Do you want to proceed? (y/n)");
+        if std::io::stdin().read_line(&mut line).is_err()
+            || line.to_lowercase().trim_end().eq("n")
+            || line.to_lowercase().trim_end().eq("no")
+        {
+            return Ok(());
+        }
     }
     git_folder.pop();
 
@@ -82,64 +88,72 @@ fn run() -> Result<()> {
 
     let (tx, rx) = unbounded();
 
-    run_path(&git_folder, tx, &regex)?;
+    let _ = run_path(&git_folder, tx, &regex);
     collect_todos(&git_folder, todos_file, rx)?;
     Ok(())
 }
 
 fn run_path(path: &Path, tx: Sender<TodoItem>, regex: &Regex) -> Result<()> {
     if path.is_dir() {
-        for entry in std::fs::read_dir(path)? {
-            let entry_path = entry?.path();
-            rayon::scope(|_| -> Result<()> { run_path(&entry_path, tx.clone(), regex) })?;
+        for result in ignore::Walk::new(path) {
+            let Ok(entry) = result else {
+                continue;
+            };
+
+            if entry.path().is_dir() {
+                continue;
+            }
+
+            rayon::scope(|_| {
+                let _ = search_file(entry.path(), tx.clone(), regex);
+            });
         }
-    } else if let Some(path_ext) = path.extension() {
+    } else {
+        rayon::scope(|_| {
+            let _ = search_file(path, tx, regex);
+        });
+    }
+    Ok(())
+}
+
+fn search_file(path: &Path, tx: Sender<TodoItem>, regex: &Regex) -> Result<()> {
+    if let Some(path_ext) = path.extension() {
         if !SOURCE_EXT.contains(&path_ext.to_str()) {
             return Ok(());
         }
 
         let file_content = std::fs::read_to_string(path)?;
 
-        rayon::scope(|_| -> Result<()> { search_file(&path, &file_content, tx, regex) })?;
+        file_content
+            .lines()
+            .enumerate()
+            .par_bridge()
+            .for_each(|(line_number, line_content)| {
+                if let Some(rgx) = regex.find(line_content) {
+                    let rgx_str = rgx.as_str();
+
+                    let split_item: Vec<&str> = rgx_str
+                        .split(REGEX_SPLIT_CHARS)
+                        .filter(|i| !i.is_empty())
+                        .collect();
+
+                    let collect = split_item[0]
+                        .rsplit(COMMENT_SPACE_CHARS)
+                        .filter(|i| !i.is_empty())
+                        .collect::<Vec<_>>();
+
+                    let todo_item = TodoItem {
+                        keyword: Keyword::new(collect[0]),
+                        name: Name::new(split_item[0]),
+                        file_path: path.to_owned(),
+                        line: line_number,
+                        message: line_content[rgx.end()..].to_string(),
+                    };
+
+                    let _ = tx.send(todo_item);
+                }
+            });
     }
-    Ok(())
-}
-
-fn search_file(
-    file_path: &Path,
-    file_content: &str,
-    tx: Sender<TodoItem>,
-    regex: &Regex,
-) -> Result<()> {
-    file_content
-        .lines()
-        .enumerate()
-        .par_bridge()
-        .for_each(|(line_number, line_content)| {
-            if let Some(rgx) = regex.find(line_content) {
-                let rgx_str = rgx.as_str();
-
-                let split_item: Vec<&str> = rgx_str
-                    .split(REGEX_SPLIT_CHARS)
-                    .filter(|i| !i.is_empty())
-                    .collect();
-
-                let collect = split_item[0]
-                    .rsplit(COMMENT_SPACE_CHARS)
-                    .filter(|i| !i.is_empty())
-                    .collect::<Vec<_>>();
-
-                let todo_item = TodoItem {
-                    keyword: Keyword::new(collect[0]),
-                    name: Name::new(split_item[1]),
-                    file_path: file_path.to_owned(),
-                    line: line_number,
-                    message: line_content[rgx.end()..].to_string(),
-                };
-
-                let _ = tx.send(todo_item);
-            }
-        });
 
     Ok(())
 }
@@ -165,12 +179,12 @@ fn write_todos(
     todos: HashMap<Keyword, Vec<TodoItem>>,
     mut todos_file: File,
 ) -> Result<()> {
-    writeln!(todos_file, "# TODOS")?;
-    writeln!(todos_file)?;
+    let _ = writeln!(todos_file, "# TODOS");
+    let _ = writeln!(todos_file);
 
     for (todo_keyword, todos_list) in todos {
-        writeln!(todos_file, "## {}", todo_keyword.0)?;
-        writeln!(todos_file)?;
+        let _ = writeln!(todos_file, "## {}", todo_keyword.0);
+        let _ = writeln!(todos_file);
 
         for item in todos_list {
             let TodoItem {
@@ -188,15 +202,14 @@ fn write_todos(
                 .unwrap()
                 .to_owned();
 
-            // [here](src/main.rs#L13)
-            writeln!(
+            let _ = writeln!(
                 todos_file,
                 " - [{rel_path}#L{line}]({rel_path}#L{line}) @{}:  {message}",
                 name.0
-            )?;
+            );
         }
 
-        writeln!(todos_file)?;
+        let _ = writeln!(todos_file);
     }
 
     Ok(())
