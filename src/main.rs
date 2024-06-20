@@ -206,7 +206,8 @@ fn write_todos(
                 .expect("The provided file should be inside the git repo.")
                 .to_str()
                 .unwrap()
-                .to_owned();
+                .to_string()
+                .replace('\\', "/");
 
             let _ = writeln!(
                 todos_file,
